@@ -39,30 +39,70 @@ export async function createThread({
 }
 
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
-    connecToDB();
+  connecToDB();
 
-    //calculate the number of posts to skip
-    const skipAmount = (pageNumber - 1) * pageSize;
+  //calculate the number of posts to skip
+  const skipAmount = (pageNumber - 1) * pageSize;
 
-    //fetch posts that have no parents(top level threads...)
-    const postsQuery = Thread.find({ parentId: { $in: [null, undefined]}})
-    .sort({ createdAt : 'desc'})
+  //fetch posts that have no parents(top level threads...)
+  const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
+    .sort({ createdAt: "desc" })
     .skip(skipAmount)
     .limit(pageSize)
-    .populate({ path: 'author', model: User})
+    .populate({ path: "author", model: User })
     .populate({
-        path: 'children',
-        populate: {
-            path: 'author',
+      path: "children",
+      populate: {
+        path: "author",
+        model: User,
+        select: "_id name parentId image",
+      },
+    });
+  const totalPostsCount = await Thread.countDocuments({
+    parentId: { $in: [null, undefined] },
+  });
+
+  const posts = await postsQuery.exec();
+
+  const isNext = totalPostsCount > skipAmount + posts.length;
+
+  return { posts, isNext };
+}
+
+export async function fetchThreadById(id: string) {
+  connecToDB();
+
+  try {
+    //TODO: populate communitty
+    const thread = await Thread.findById(id)
+      .populate({
+        path: "author",
+        model: User,
+        select: "_id id name image",
+      })
+      .populate({
+        path: "children",
+        populate: [
+          {
+            path: "author",
             model: User,
-            select: "_id name parentId image"
-        }
-    })
-    const totalPostsCount = await Thread.countDocuments({ parentId: {$in: [null, undefined]}})
+            select: "_id id name parentId image",
+          },
+          {
+            path: "children",
+            model: Thread,
+            populate: {
+              path: "author",
+              model: User,
+              select: "_id id name parentId image",
+            },
+          },
+        ],
+      }).exec();
 
-    const posts = await postsQuery.exec();
-
-    const isNext = totalPostsCount > skipAmount + posts.length;
-
-    return { posts, isNext}
+      return thread;
+  } catch (err) {
+    console.error("Error while fetching thread:", err);
+    throw new Error("Unable to fetch thread");
+  }
 }
