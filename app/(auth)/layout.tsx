@@ -8,7 +8,7 @@ import "../globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Threads",
+  title: "SocialNexus",
   description: "A Nextjs 13 Meta Threads App",
 };
 
